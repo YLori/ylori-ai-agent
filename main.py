@@ -1,21 +1,16 @@
 import streamlit as st
-from langchain_community.chat_models import ChatOpenAI
-from langchain.chains import RetrievalQA
 from langchain_community.vectorstores import FAISS
-from langchain.embeddings import HuggingFaceEmbeddings
 from langchain_community.document_loaders import WebBaseLoader
+from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.chains import RetrievalQA
+from langchain.llms import HuggingFaceHub
 import os
 
-st.set_page_config(page_title="YLori Travel Agent", layout="wide")
-st.title("YLori AI Travel Agent")
+st.set_page_config(page_title="YLori AI Travel Agent", layout="wide")
+st.title("YLori AI Travel Agent (Hugging Face Version)")
 
-# Optional: You can still set an OpenAI key if you want to use ChatOpenAI later
-openai_api_key = os.getenv("OPENAI_API_KEY")
-if not openai_api_key:
-    st.warning("OPENAI_API_KEY is not set — you can only use HuggingFaceEmbeddings right now.")
-
-# Top OTA sites for travel info
+# Load documents from travel websites
 ota_urls = [
     "https://www.expedia.com/Destinations-In-Europe.d6022967.Hotel-Destinations",
     "https://www.kayak.com/travel-guides",
@@ -29,14 +24,17 @@ def load_data():
     docs = loader.load()
     splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=150)
     texts = splitter.split_documents(docs)
-
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
     return FAISS.from_documents(texts, embeddings)
 
 vectorstore = load_data()
 
+# Use a free Hugging Face text generation model
 qa_chain = RetrievalQA.from_chain_type(
-    llm=ChatOpenAI(openai_api_key=openai_api_key, temperature=0),
+    llm=HuggingFaceHub(
+        repo_id="google/flan-t5-base",  # or another Hugging Face model
+        model_kwargs={"temperature": 0.5, "max_length": 512}
+    ),
     retriever=vectorstore.as_retriever()
 )
 
